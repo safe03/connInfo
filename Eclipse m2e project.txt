@@ -1,0 +1,162 @@
+https://maven.apache.org/download.cgi
+**Maven은 실제 Maven 소스 및 실행파일
+<localRepository>C:\dev\apache-maven-3.8.1\repository</localRepository>
+
+
+
+**Maven Integration은 이클립스에서 Maven을 사용하기 위한 플러그인
+https://download.eclipse.org/technology/m2e/releases/latest/ 
+
+
+
+***   
+Failed to read artifact descriptor for 
+egovframework.rte:egovframework.rte.ptl.mvc:jar:3.8.0: Could not transfer 
+artifact egovframework.rte:egovframework.rte.ptl.mvc:pom:3.8.0 from/to maven-
+default-http-blocker (http://0.0.0.0/): Blocked mirror for repositories: 
+
+해결 절차
+${maven.home}/conf/settings.xml 혹은 ${user.home}/.m2/settings.xml 파일을 엽니다.
+파일 검색을 통해 아래와 같은 부분을 찾아 주석처리 혹은 삭제 후 저장합니다.
+실행하고자 했던 명령어를 재시도하여 확인합니다. (ex) mvn clean package)
+Build 결과를 확인합니다.
+
+<mirror>
+<id>maven-default-http-blocker</id>
+<mirrorOf>external:http:*</mirrorOf>
+<name>Pseudo repository to mirror external repositories initially using HTTP.</name>
+<url>http://0.0.0.0/</url>
+</mirror>
+
+
+http://maven.egovframe.go.kr/maven/
+
+** ssl 설정
+아파치 그룹에 openssl 용으로 받으면 된다. 아파치 : http://httpd.apache.org/download.cgi
+Win32 Binary including OpenSSL 0.9.8t (MSI Installer) 다운받아 설치하자.
+
+설치는 기존 아파치와 다를 게 없으니 생략하고 SSL 보안서버는 443포트를 사용하고 있으니 충동일 생기지 않게 443포트를 사용하는 서비스가 있는 지 체크를 하자.
+
+C:\> netstat -ano | find "443"
+
+1. 아파치 기본 설정 수정
+
+아파치설치폴더/conf/httpd.conf 열어 설정을 수정한다.
+
+LoadModule ssl_module modules/mod_ssl.so         모듈을 활성화 시킨다. #(주석)을 제거하면 된다.
+
+Include conf/extra/httpd-ssl.conf                           인크루트를 활성화 시킨다.
+
+
+
+2. 아파치 ssl 설정 수정
+
+아파치설치폴더/conf/extra/httpd-ssl.conf 열어 설정을 수정한다.
+
+Listen 443                                                            보안서버 포트를 확인한다.
+
+SSLCertificateFile "인증서 생성 폴더/test.crt"            보안인증서 파일명을 입력한다.
+
+SSLCertificateKeyFile "인증서 생성 폴더/test.key"      보안인증서 생성할때 만든 인증키 파일명을 입력한다.
+
+
+
+<Directory "운영 서비스 폴더">                               <VirtualHost> 사이에 넣는 다.
+
+   Options FollowSymLinks 
+
+   AllowOverride All 
+
+   Order allow,deny 
+
+   Allow from all 
+
+</Directory>
+
+3. 인증서 생성
+
+인증서는 우선 랜덤파일을 생성하고 인증키를 생성한다. 마지막으로 인증서를 발급받는 다.
+
+그런데 발급받는 곳에서 원하는 규칙에 맞는 인증키를 생성해야 한다는 것을 주의하자.
+
+
+
+윈도우 프롬프트를 실행한다. cmd
+
+아파치설치폴더/bin> openssl md5 * > rand.dat                                                             현 폴더에 rand.dat 파일이 생성됨.
+
+아파치설치폴더/bin> openssl genrsa -rand rand.dat -des3 -out 2048 > key.pem               현 폴더에 key.pem 파일이 생성됨.
+
+입력한 암호는 꼭 기억하자.
+
+또 한가지 openssl.cnf 파일을 찾지 못하는 오류가 발생할때는 -config 아파치설치폴더/conf/openssl.cnf 옵션을 추가하면 된다.
+
+openssl.cnf 파일의 위치를 입력하면 해결할 수 있다.
+
+
+
+아파치설치폴더/bin> openssl req -new -key key.pem > csr.pem                                     인증서 정보를 입력하는 화면이 출력됨.
+
+Country : KR                                           국가 코드
+
+State/province : Seoul                             시/도
+
+Locality : Songpa-gu                               시,구,군
+
+Organization : syaku inc                          회사명
+
+Organization Unit : dev                            부서명
+
+Common Name : syaku.tistory.com            사이트 도메인
+
+
+
+그외 입력값은 엔터키로 스킵한다. 그럼 현 폴더에 csr.pem 파일이 생성됨.
+
+ csr.pem 파일을 열어 코드를 모두 복사하여 인증서 발급에 사용한다.
+
+
+
+# 위 생성법은 모두 리눅스용이라 인증키 파일을 윈도우용으로 변환하여야 한다. 그렇지 않을 경우 아파치 실행시 오류가 발생하니 꼭 기억하자! 
+
+위 인증키로 인증서를 발급받은 후 윈도우용으로 변환하여 사용해도 무방하다.
+
+
+
+아파치설치폴더/bin> openssl rsa -in key.pem -out win_key.pem
+
+
+
+모든 설치가 완료되었고, 마지막으로 443 포트가 방화벽에 막히지 않았는 지를 체크하고 서비스는 가동하면 된다.
+
+
+
+이제 웹페이지의 링크를 http 에서 https 로 변경하면 된다.
+
+변경해야 할 페이지는 회원가입, 회원수정과 같은 개인정보를 입력받는 페이지는 모두 https 로 해야한다.
+
+
+
+[중요] https 로 접속한 후 다른 프로토콜로 자료를 호출해선 안된다. 그럼 아래와 같은 메세지가 출력된다.
+
+"이 페이지에는 안전하지 않은 다른 리소스가 있습니다."
+
+
+
+
+
+
+
+
+
+해결법은 http 를 사용하여 호출하는 모든 자료를 https 혹은 경로만 사용하여 호출해야 한다.
+
+자료 기준은 이미지, 동영상, 자바스크립트, 스타일 스타등 모든 파일들...
+
+
+
+<img src="http://aaa.jpg" /> (X)
+
+<img src="https://aaa.jpg" /> (O)
+
+<img src="aaa.jpg" /> (O)
